@@ -32,10 +32,20 @@ The prod image is mapped to port 8081 instead of 8080.
 
 Use Docker compose to start the prod image as a container:
 
-```
-cargo sqlx prepare # Cache query metadata for a offlne build
+```bash 
+# Cache query metadata for a offline build
+cargo sqlx prepare -- --all-targets --all-features  
+
 docker-compose up --build
+
 ```
+## Testing with test client
+To adjust settings simply edit the main.rs file in the client-test folder.
+```bash
+cd client-test
+cargo run
+```
+
 
 # Development
 
