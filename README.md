@@ -13,6 +13,7 @@ A simple restaurant API that allows for the creation of orders.
 crago install sqlx-cli
 copy .env.example .env
 
+docker-compose up db --detach
 sqlx migrate run  
 
 cargo build
@@ -23,6 +24,7 @@ cargo build
 ## Swagger
 
 ```bash
+docker-compose up db --detach
 cargo run
 # go to http://localhost:8080/swagger-ui/index.html
 ```
