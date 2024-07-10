@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: simple-restaurant-db
+    image: postgres:16.3
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "restaurant"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data/
+  api:
+    container_name: simple-restaurant-api
+    command: run
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    environment:
+      RESTAURANT_DB_HOST: "db"
+      RESTAURANT_DB_PORT: "5432"
+      RESTAURANT_DB_USER: "postgres"
+      RESTAURANT_DB_DATABASE: "restaurant"
+      RESTAURANT_DB_PASSWORD: "postgres"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./target:/code/target
+      - ./src:/code/src
+      - ./Cargo.toml:/code/Cargo.toml
+    depends_on:
+      - db
