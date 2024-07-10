@@ -4,5 +4,8 @@ simple-restaurant-api
 
 
 
-### Development 
-...
+
+
+
+### Solution Details
+- Unit test omitted since no business logic was

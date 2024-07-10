@@ -1,5 +1,5 @@
-use actix_web::{HttpResponse, Responder, web};
-use actix_web::web::{Data, ServiceConfig};
+use actix_web::{delete, get, HttpResponse, post, Responder, web};
+use actix_web::web::{Data, get, ServiceConfig};
 use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{Error, FromRow};
 use sqlx::types::Uuid;
@@ -10,34 +10,33 @@ use crate::services::orders;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        list,
-        get,
-        post,
-        delete,
+        get_list,
+        get_single,
+        post_single,
+        delete_single
     ),
-    components(schemas(Order, OrderCreateRequest))
+    components(schemas(Order, OrderCreateRequest, ErrorResponse)),
 )]
 pub struct OrderApi;
 
 pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     |config: &mut ServiceConfig| {
         config
-            .route("/", web::get().to(list))
-            .route("/", web::get().to(post))
-            .route("/{id}", web::get().to(get))
-            .route("/{id}", web::get().to(delete));
+            .service(get_multiple)
+            .service(get_single)
+            .service(post_single)
+            .service(delete_single);
     }
 }
-
 
 #[derive(Serialize, ToSchema, FromRow)]
 struct Order {
     id: i32,
     table_number: i32,
-    item_name: String
+    item_name: String,
 }
 
-#[derive(Serialize, ToSchema, FromRow)]
+#[derive(Deserialize, ToSchema, FromRow)]
 struct OrderCreateRequest {
     table_number: i32,
     item_name: String
@@ -49,19 +48,19 @@ struct ListFilters {
     table_number: i32,
 }
 
-pub enum ErrorResponse {
-    NotFound(String),
+#[derive(Serialize, ToSchema)]
+pub struct  ErrorResponse {
+    details: String
 }
 
 #[utoipa::path(
-    get,
-    path = "/",
     responses(
         (status = 200, body = Vec<Order>),
     ),
     params(ListFilters)
 )]
-pub async fn list(
+#[get("/")]
+pub async fn get_multiple(
     context: Data<AppContext>,
     filters: web::Query<ListFilters>
 ) -> impl Responder {
@@ -82,26 +81,22 @@ pub async fn list(
 
 
 #[utoipa::path(
-    get,
-    path = "/{id}",
     responses(
         (status = 200, body = Vec<Order>),
         (status = 404, body = ErrorResponse),
     ),
-    params(
-        ("id", description = "Unique id for the order")
-    ),
 )]
-pub async fn get(
+#[get("/{id}")]
+pub async fn get_single(
     context: Data<AppContext>,
     path: web::Path<i32>,
 ) -> impl Responder {
     let order_id = path.into_inner();
 
-    match `sqlx::query_as!(
+    match sqlx::query_as!(
         Order,
         "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE id = $1",
-        order_id
+        Some(order_id)
     )
         .fetch_one(&context.db)
         .await
@@ -112,25 +107,24 @@ pub async fn get(
 }
 
 #[utoipa::path(
-    post,
-    path = "/",
     request_body = OrderCreateRequest,
     responses(
         (status = 201, body = Order),
         (status = 404, body = ErrorResponse),
     ),
 )]
-pub async fn post(
+#[post("/")]
+pub async fn post_single(
     context: Data<AppContext>,
-
+    order_create_req: web::Json<OrderCreateRequest>,
 ) -> impl Responder {
-    let order_id= path.into_inner();
+    let request = order_create_req.into_inner();
 
     match sqlx::query_as!(
         Order,
-        "INSERT INTO restaurant_table_orders (table_name,item_name) VALUES ($1,$3) returning id",
-        table_number,
-        order_id
+        "INSERT INTO restaurant_table_orders (table_number,item_name) VALUES ($1,$2) RETURNING id, table_number, item_name;",
+        request.table_number,
+        request.item_name
     )
         .fetch_all(&context.db)
         .await
@@ -141,17 +135,13 @@ pub async fn post(
 }
 
 #[utoipa::path(
-    delete,
-    path = "/{id}",
     responses(
         (status = 204),
         (status = 404, body = ErrorResponse),
     ),
-    params(
-        ("id", description = "Unique id for the order")
-    ),
 )]
-pub async fn delete(
+#[delete("/{id}")]
+pub async fn delete_single(
     context: Data<AppContext>,
     path: web::Path<i32>,
 ) -> impl Responder {
@@ -161,7 +151,6 @@ pub async fn delete(
         "DELETE FROM restaurant_table_orders WHERE id = $1",
         order_id
     )
-        //fetch one?
         .execute(&context.db)
         .await
     {
@@ -173,7 +162,7 @@ pub async fn delete(
 
 fn map_db_error_to_http(error: Error) -> HttpResponse {
     match error {
-        Error::RowNotFound => HttpResponse::NotFound().finish(),
-        _ => HttpResponse::InternalServerError().finish()
+        Error::RowNotFound => HttpResponse::NotFound().json(ErrorResponse { details: "Record Not found".to_string()}),
+        _ => HttpResponse::InternalServerError().json(ErrorResponse { details: "Internal Server Error".to_string()}),
     }
 }

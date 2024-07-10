@@ -6,10 +6,8 @@ CREATE TABLE IF NOT EXISTS restaurant_tables (
 
 CREATE TABLE IF NOT EXISTS restaurant_table_orders (
     id SERIAL PRIMARY KEY,
-    table_number INT,
+    table_number INT NOT NULL,
     item_name VARCHAR(255) NOT NULL,
-    -- snapshot ? Finishes at?
-    cook_time_seconds INT NOT NULL,
     CONSTRAINT fk_table_number FOREIGN KEY (table_number) REFERENCES restaurant_tables(table_number)
 );
 

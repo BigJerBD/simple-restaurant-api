@@ -18,12 +18,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.dev
-    environment:
-      RESTAURANT_DB_HOST: "db"
-      RESTAURANT_DB_PORT: "5432"
-      RESTAURANT_DB_USER: "postgres"
-      RESTAURANT_DB_DATABASE: "restaurant"
-      RESTAURANT_DB_PASSWORD: "postgres"
+    env_file:
+      - docker-compose.env
     ports:
       - "8080:8080"
     volumes:
