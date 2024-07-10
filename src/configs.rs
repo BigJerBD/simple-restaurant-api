@@ -8,14 +8,14 @@ pub struct ApiConfig {
 
 #[derive(Deserialize, Clone)]
 pub struct DatabaseConfig {
-    pub host: String,
-    pub port: u16,
-    pub database: String,
-    pub user: String,
-    pub password: String,
+    pub url: String,
     #[serde(default = "default_max_connections")]
     pub max_connections: u32,
 }
 
-fn default_host() -> String { "0.0.0.0:8080".to_string() }
-fn default_max_connections() -> u32 { 8 }
+fn default_host() -> String {
+    "0.0.0.0:8080".to_string()
+}
+fn default_max_connections() -> u32 {
+    8
+}

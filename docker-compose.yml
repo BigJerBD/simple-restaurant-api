@@ -17,11 +17,11 @@ services:
     command: run
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
-    env_file:
-      - docker-compose.env
+      dockerfile: ./Dockerfile
+    environment:
+        DATABASE_URL: "postgres://postgres:postgres@db/restaurant"
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - ./target:/code/target
       - ./src:/code/src

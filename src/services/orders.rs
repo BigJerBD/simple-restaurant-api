@@ -1,21 +1,16 @@
-use actix_web::{delete, get, HttpResponse, post, Responder, web};
-use actix_web::web::{Data, get, ServiceConfig};
-use serde::{Deserialize, Serialize, Serializer};
+use actix_web::web::{Data, ServiceConfig};
+use actix_web::{delete, get, post, web, HttpResponse, Responder};
+use serde::{Deserialize, Serialize};
+use sqlx::error::ErrorKind;
 use sqlx::{Error, FromRow};
-use sqlx::types::Uuid;
-use utoipa::{OpenApi, ToSchema, self, IntoParams};
-use crate::AppContext;
-use crate::services::orders;
+use utoipa::{self, IntoParams, OpenApi, ToSchema};
+
+use crate::app;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(
-        get_multiple,
-        get_single,
-        post_single,
-        delete_single
-    ),
-    components(schemas(Order, OrderCreateRequest, ErrorResponse)),
+    paths(get_multiple, get_single, post_single, delete_single),
+    components(schemas(Order, OrderCreateRequest, ErrorResponse))
 )]
 pub struct OrderApi;
 
@@ -29,28 +24,28 @@ pub fn configure() -> impl FnOnce(&mut ServiceConfig) {
     }
 }
 
-#[derive(Serialize, ToSchema, FromRow)]
+#[derive(PartialEq, Deserialize, Serialize, ToSchema, FromRow, Debug)]
 struct Order {
     id: i32,
     table_number: i32,
     item_name: String,
 }
 
-#[derive(Deserialize, ToSchema, FromRow)]
+#[derive(Deserialize, Serialize, ToSchema, FromRow)]
 struct OrderCreateRequest {
     table_number: i32,
-    item_name: String
+    item_name: String,
 }
 
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 struct ListFilters {
-    table_number: i32,
+    table_number: Option<i32>,
 }
 
-#[derive(Serialize, ToSchema)]
-pub struct  ErrorResponse {
-    details: String
+#[derive(Deserialize, Serialize, ToSchema)]
+pub struct ErrorResponse {
+    details: String,
 }
 
 #[utoipa::path(
@@ -61,24 +56,30 @@ pub struct  ErrorResponse {
 )]
 #[get("/")]
 pub async fn get_multiple(
-    context: Data<AppContext>,
-    filters: web::Query<ListFilters>
+    context: Data<app::State>,
+    filters: web::Query<ListFilters>,
 ) -> impl Responder {
-    let ListFilters{ table_number } = filters.into_inner();
+    let ListFilters { table_number } = filters.into_inner();
 
     match sqlx::query_as!(
         Order,
-        "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE table_number = $1;",
+        r#"
+        SELECT id, table_number, item_name
+        FROM restaurant_table_orders
+        WHERE CASE
+        WHEN $1::INT IS NOT NULL THEN table_number = $1
+            ELSE TRUE
+        END
+         "#,
         table_number
     )
-        .fetch_all(&context.db)
-        .await
+    .fetch_all(&context.db)
+    .await
     {
         Ok(orders) => HttpResponse::Ok().json(orders),
-        Err(e) => map_db_error_to_http(e)
+        Err(e) => map_db_error_to_http(e),
     }
 }
-
 
 #[utoipa::path(
     responses(
@@ -87,10 +88,7 @@ pub async fn get_multiple(
     ),
 )]
 #[get("/{id}")]
-pub async fn get_single(
-    context: Data<AppContext>,
-    path: web::Path<i32>,
-) -> impl Responder {
+pub async fn get_single(context: Data<app::State>, path: web::Path<i32>) -> impl Responder {
     let order_id = path.into_inner();
 
     match sqlx::query_as!(
@@ -98,11 +96,11 @@ pub async fn get_single(
         "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE id = $1",
         Some(order_id)
     )
-        .fetch_one(&context.db)
-        .await
+    .fetch_one(&context.db)
+    .await
     {
         Ok(order) => HttpResponse::Ok().json(order),
-        Err(e) => map_db_error_to_http(e)
+        Err(e) => map_db_error_to_http(e),
     }
 }
 
@@ -115,7 +113,7 @@ pub async fn get_single(
 )]
 #[post("/")]
 pub async fn post_single(
-    context: Data<AppContext>,
+    context: Data<app::State>,
     order_create_req: web::Json<OrderCreateRequest>,
 ) -> impl Responder {
     let request = order_create_req.into_inner();
@@ -126,10 +124,10 @@ pub async fn post_single(
         request.table_number,
         request.item_name
     )
-        .fetch_all(&context.db)
+        .fetch_one(&context.db)
         .await
     {
-        Ok(order) => HttpResponse::Ok().json(order),
+        Ok(order) => HttpResponse::Created().json(order),
         Err(e) => map_db_error_to_http(e)
     }
 }
@@ -141,28 +139,213 @@ pub async fn post_single(
     ),
 )]
 #[delete("/{id}")]
-pub async fn delete_single(
-    context: Data<AppContext>,
-    path: web::Path<i32>,
-) -> impl Responder {
-    let  order_id= path.into_inner();
+pub async fn delete_single(context: Data<app::State>, path: web::Path<i32>) -> impl Responder {
+    let order_id = path.into_inner();
 
     match sqlx::query!(
-        "DELETE FROM restaurant_table_orders WHERE id = $1",
+        "DELETE FROM restaurant_table_orders WHERE id = $1 RETURNING id;",
         order_id
     )
-        .execute(&context.db)
-        .await
+    .fetch_one(&context.db)
+    .await
     {
-        Ok(order) => HttpResponse::NoContent().finish(),
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => map_db_error_to_http(e),
     }
 }
 
-
 fn map_db_error_to_http(error: Error) -> HttpResponse {
     match error {
-        Error::RowNotFound => HttpResponse::NotFound().json(ErrorResponse { details: "Record Not found".to_string()}),
-        _ => HttpResponse::InternalServerError().json(ErrorResponse { details: "Internal Server Error".to_string()}),
+        Error::RowNotFound => HttpResponse::NotFound().json(ErrorResponse {
+            details: "Record Not found".to_string(),
+        }),
+        Error::Database(db_error) => match &db_error.kind() {
+            ErrorKind::Other => HttpResponse::InternalServerError().json(ErrorResponse {
+                details: "Internal Server Error".to_string(),
+            }),
+            _ => HttpResponse::UnprocessableEntity().json(ErrorResponse {
+                details: db_error.to_string(),
+            }),
+        },
+        _ => HttpResponse::InternalServerError().json(ErrorResponse {
+            details: "Internal Server Error".to_string(),
+        }),
+    }
+}
+
+#[cfg(test)]
+mod tests_integration {
+    use actix_web::{test, App};
+    use sqlx::PgPool;
+
+    use super::*;
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_gets_multiple(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("{}/", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 200);
+
+        let json: Vec<Order> = test::read_body_json(resp).await;
+        assert_eq!(
+            json[0],
+            Order {
+                id: 100,
+                table_number: 0,
+                item_name: "test-poutine".to_string()
+            }
+        );
+        assert_eq!(json.len(), 1);
+    }
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_gets_multiple_with_excluding_filter(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("{}/?table_number=2222", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 200);
+
+        let json: Vec<Order> = test::read_body_json(resp).await;
+        assert_eq!(json.len(), 0);
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_get_multiple_with_including_filter(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("{}/?table_number=0", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 200);
+
+        let json: Vec<Order> = test::read_body_json(resp).await;
+        assert_eq!(json.len(), 1);
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_get_single(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("{}/100", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 200);
+
+        let json: Order = test::read_body_json(resp).await;
+        assert_eq!(
+            json,
+            Order {
+                id: 100,
+                table_number: 0,
+                item_name: "test-poutine".to_string()
+            }
+        );
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_get_single_not_found(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::get()
+            .uri(&format!("{}/999", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 404);
+
+        let _json: ErrorResponse = test::read_body_json(resp).await;
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_delete_single(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::delete()
+            .uri(&format!("{}/100", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 204);
+
+        // Todo: Ideally also check the DB content
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_delete_single_not_found(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::delete()
+            .uri(&format!("{}/999", app::orders_path()))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 404);
+
+        let _json: ErrorResponse = test::read_body_json(resp).await;
+
+        // Todo: Ideally also check the DB content
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_post_single(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::post()
+            .uri(&format!("{}/", app::orders_path()))
+            .set_json(OrderCreateRequest {
+                table_number: 1,
+                item_name: "test".to_string(),
+            })
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 201);
+
+        let json: Order = test::read_body_json(resp).await;
+        assert_eq!(json.table_number, 1);
+        assert_eq!(json.item_name, "test");
+
+        // Todo: Ideally also check the DB content
+    }
+
+    #[sqlx::test(fixtures("orders"))]
+    async fn test_post_single_invalid_table(pool: PgPool) {
+        pool.acquire().await.unwrap();
+        let app = test::init_service(App::new().configure(app::configure(pool.clone()))).await;
+
+        let req = test::TestRequest::post()
+            .uri(&format!("{}/", app::orders_path()))
+            .set_json(OrderCreateRequest {
+                table_number: 10000000,
+                item_name: "test".to_string(),
+            })
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 422);
+
+        let _json: ErrorResponse = test::read_body_json(resp).await;
+
+        // Todo: Ideally also check the DB content
     }
 }

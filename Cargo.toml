@@ -12,7 +12,7 @@ actix-rt = "2.10.0"
 actix-web = "4.8.0"
 
 # Databases
-sqlx = { version = "0.7.4", features = ["runtime-async-std-native-tls", "postgres", "uuid"] }
+sqlx = { version = "0.7.4", features = ["runtime-async-std-native-tls", "postgres", "uuid", "migrate"] }
 
 # Config
 envy = "0.4.2"
@@ -29,4 +29,5 @@ uuid = { version = "1.10.0", features = ["v4"] }
 # Swagger
 utoipa =  { version="5.0.0-alpha.0", features = ["actix_extras"]}
 utoipa-swagger-ui = { version = "7.1.1-alpha.0", features = ["actix-web"] }
+dotenv = "0.15.0"
 
