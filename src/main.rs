@@ -1,6 +1,5 @@
 use actix_web::{middleware, App, HttpServer};
 use dotenv::dotenv;
-use sqlx::postgres::PgConnectOptions;
 use sqlx::postgres::PgPoolOptions;
 
 use crate::{configs::ApiConfig, configs::DatabaseConfig};

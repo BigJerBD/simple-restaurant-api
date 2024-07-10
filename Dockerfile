@@ -4,6 +4,7 @@ WORKDIR /code/
 COPY Cargo.lock .
 COPY Cargo.toml .
 COPY src ./src
+COPY .sqlx .
 
 RUN cargo install --path .
 

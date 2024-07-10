@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE table_number = $1;",
+  "query": "INSERT INTO restaurant_table_orders (table_number,item_name) VALUES ($1,$2) RETURNING id, table_number, item_name;",
   "describe": {
     "columns": [
       {
@@ -21,14 +21,15 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Int4",
+        "Varchar"
       ]
     },
     "nullable": [
       false,
-      true,
+      false,
       false
     ]
   },
-  "hash": "2c86b2292e75f2a76a4e12b6f42c82c379a89342f44c4a72e5755a985017bf74"
+  "hash": "57d0bc8a69e07f3cd9bf16d293ca8d78e461925c80b90b45be54b8930f545c6e"
 }

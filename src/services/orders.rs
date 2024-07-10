@@ -1,5 +1,6 @@
 use actix_web::web::{Data, ServiceConfig};
 use actix_web::{delete, get, post, web, HttpResponse, Responder};
+use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::error::ErrorKind;
 use sqlx::{Error, FromRow};
@@ -29,6 +30,8 @@ struct Order {
     id: i32,
     table_number: i32,
     item_name: String,
+    #[schema(value_type = String, format = DateTime)]
+    ready_at: NaiveDateTime,
 }
 
 #[derive(Deserialize, Serialize, ToSchema, FromRow)]
@@ -64,7 +67,7 @@ pub async fn get_multiple(
     match sqlx::query_as!(
         Order,
         r#"
-        SELECT id, table_number, item_name
+        SELECT id, table_number, item_name, ready_at
         FROM restaurant_table_orders
         WHERE CASE
         WHEN $1::INT IS NOT NULL THEN table_number = $1
@@ -93,8 +96,8 @@ pub async fn get_single(context: Data<app::State>, path: web::Path<i32>) -> impl
 
     match sqlx::query_as!(
         Order,
-        "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE id = $1",
-        Some(order_id)
+        "SELECT id, table_number, item_name, ready_at FROM restaurant_table_orders WHERE id = $1",
+        order_id
     )
     .fetch_one(&context.db)
     .await
@@ -120,9 +123,10 @@ pub async fn post_single(
 
     match sqlx::query_as!(
         Order,
-        "INSERT INTO restaurant_table_orders (table_number,item_name) VALUES ($1,$2) RETURNING id, table_number, item_name;",
+        "INSERT INTO restaurant_table_orders (table_number,item_name, ready_at) VALUES ($1,$2, $3) RETURNING id, table_number, item_name, ready_at;",
         request.table_number,
-        request.item_name
+        request.item_name,
+        Utc::now().naive_utc() + chrono::Duration::minutes((rand::random::<i64>() % 10) + 5)
     )
         .fetch_one(&context.db)
         .await
@@ -176,6 +180,7 @@ fn map_db_error_to_http(error: Error) -> HttpResponse {
 #[cfg(test)]
 mod tests_integration {
     use actix_web::{test, App};
+    use chrono::NaiveDateTime;
     use sqlx::PgPool;
 
     use super::*;
@@ -198,7 +203,9 @@ mod tests_integration {
             Order {
                 id: 100,
                 table_number: 0,
-                item_name: "test-poutine".to_string()
+                item_name: "test-poutine".to_string(),
+                ready_at: NaiveDateTime::parse_from_str("2024-07-10 00:00:00", "%Y-%m-%d %H:%M:%S")
+                    .unwrap()
             }
         );
         assert_eq!(json.len(), 1);
@@ -253,7 +260,9 @@ mod tests_integration {
             Order {
                 id: 100,
                 table_number: 0,
-                item_name: "test-poutine".to_string()
+                item_name: "test-poutine".to_string(),
+                ready_at: NaiveDateTime::parse_from_str("2024-07-10 00:00:00", "%Y-%m-%d %H:%M:%S")
+                    .unwrap()
             }
         );
     }
