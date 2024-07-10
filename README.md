@@ -13,8 +13,10 @@ A simple restaurant API that allows for the creation of orders.
 crago install sqlx-cli
 copy .env.example .env
 
+# Leave Database up for other commands
 docker-compose up db --detach
 sqlx migrate run  
+
 
 cargo build
 ```
@@ -24,9 +26,9 @@ cargo build
 ## Swagger
 
 ```bash
-docker-compose up db --detach
+# (Database Required)
 cargo run
-# go to http://localhost:8080/swagger-ui/index.html
+# -> go to http://localhost:8080/swagger-ui/index.html
 ```
 
 ##  Using prod Image
@@ -35,7 +37,7 @@ The prod image is mapped to port 8081 instead of 8080.
 Use Docker compose to start the prod image as a container:
 
 ```bash 
-# Cache query metadata for a offline build
+# (Database Required)
 cargo sqlx prepare -- --all-targets --all-features  
 
 docker-compose up --build
@@ -44,6 +46,7 @@ docker-compose up --build
 ## Testing with test client
 To adjust settings simply edit the main.rs file in the client-test folder.
 ```bash
+# Start the server from prod image or local build
 cd client-test
 cargo run
 ```
@@ -54,7 +57,7 @@ cargo run
 ### Testing
 
 ```bash
-docker-compose up db --detach
+# (Database Required)
 cargo test
 ```
 

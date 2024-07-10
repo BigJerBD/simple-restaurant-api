@@ -64,7 +64,6 @@ fn main() {
                         println!("{} - {:?}", thread_id, response);
 
                         let order: Order = response.unwrap().json().unwrap();
-
                         let response = client.delete(format!("{}{}", url, order.id)).send();
 
                         println!("{} - {:?}", thread_id, response);
