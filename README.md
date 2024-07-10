@@ -4,7 +4,7 @@ A simple restaurant API that allows for the creation of orders.
 
 ## Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) 
-- [Python](https://www.python.org/downloads/) (for pre-commit hooks
+- [Python](https://www.python.org/downloads/) (for pre-commit hooks)
 - [Docker+Docker-Compose](https://docs.docker.com/get-docker/) 
 
 ## Initial Setup
