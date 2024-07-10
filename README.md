@@ -15,7 +15,6 @@ copy .env.example .env
 
 sqlx migrate run  
 
-cargo sqlx prepare
 cargo build
 ```
 
@@ -34,6 +33,7 @@ The prod image is mapped to port 8081 instead of 8080.
 Use Docker compose to start the prod image as a container:
 
 ```
+cargo sqlx prepare # Cache query metadata for a offlne build
 docker-compose up --build
 ```
 
@@ -66,7 +66,6 @@ pre-commit install
 ```bash
 sqlx migrate add <migration-name>
 ```
-
 
 # Solution Details
 

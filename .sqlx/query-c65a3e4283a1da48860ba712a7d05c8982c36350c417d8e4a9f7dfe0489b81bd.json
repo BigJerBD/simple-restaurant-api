@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, table_number, item_name FROM restaurant_table_orders WHERE id = $1",
+  "query": "SELECT id, table_number, item_name, ready_at FROM restaurant_table_orders WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,11 @@
         "ordinal": 2,
         "name": "item_name",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "ready_at",
+        "type_info": "Timestamp"
       }
     ],
     "parameters": {
@@ -27,8 +32,9 @@
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "b8ba63964d31fe69ab808f2d0f366a760d635f94eec384f80d29cb5af996628a"
+  "hash": "c65a3e4283a1da48860ba712a7d05c8982c36350c417d8e4a9f7dfe0489b81bd"
 }

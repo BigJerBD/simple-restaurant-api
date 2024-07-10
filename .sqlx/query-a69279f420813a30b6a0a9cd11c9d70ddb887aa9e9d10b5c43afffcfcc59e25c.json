@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, table_number, item_name, ready_at\n        FROM restaurant_table_orders\n        WHERE CASE\n        WHEN $1::INT IS NOT NULL THEN table_number = $1\n            ELSE TRUE\n        END\n         ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "table_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "item_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "ready_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a69279f420813a30b6a0a9cd11c9d70ddb887aa9e9d10b5c43afffcfcc59e25c"
+}

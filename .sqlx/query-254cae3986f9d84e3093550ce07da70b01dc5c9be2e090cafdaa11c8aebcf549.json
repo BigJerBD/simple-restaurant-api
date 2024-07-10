@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO restaurant_table_orders (table_number,item_name) VALUES ($1,$2) RETURNING id, table_number, item_name;",
+  "query": "INSERT INTO restaurant_table_orders (table_number,item_name, ready_at) VALUES ($1,$2, $3) RETURNING id, table_number, item_name, ready_at;",
   "describe": {
     "columns": [
       {
@@ -17,19 +17,26 @@
         "ordinal": 2,
         "name": "item_name",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "ready_at",
+        "type_info": "Timestamp"
       }
     ],
     "parameters": {
       "Left": [
         "Int4",
-        "Varchar"
+        "Varchar",
+        "Timestamp"
       ]
     },
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "57d0bc8a69e07f3cd9bf16d293ca8d78e461925c80b90b45be54b8930f545c6e"
+  "hash": "254cae3986f9d84e3093550ce07da70b01dc5c9be2e090cafdaa11c8aebcf549"
 }
