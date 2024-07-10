@@ -10,7 +10,7 @@ use crate::services::orders;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        get_list,
+        get_multiple,
         get_single,
         post_single,
         delete_single
