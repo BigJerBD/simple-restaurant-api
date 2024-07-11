@@ -10,15 +10,15 @@ A simple restaurant API that allows for the creation of orders.
 ## Initial Setup
 
 ```bash
-crago install sqlx-cli
-copy .env.example .env
+cargo install sqlx-cli
+cp .env.example .env
 
-# Leave Database up for other commands
 docker-compose up db --detach
 sqlx migrate run  
 
-
 cargo build
+# Without the database:
+# SQLX_OFFLINE=true cargo build
 ```
 
 # Usage
@@ -28,29 +28,25 @@ cargo build
 ```bash
 # (Database Required)
 cargo run
-# -> go to http://localhost:8080/swagger-ui/index.html
+open http://localhost:8080/swagger-ui/index.html
 ```
 
 ##  Using prod Image
 The prod image is mapped to port 8081 instead of 8080.
-
 Use Docker compose to start the prod image as a container:
 
 ```bash 
-# (Database Required)
-cargo sqlx prepare -- --all-targets --all-features  
-
-docker-compose up --build
-
+docker-compose up
+open http://localhost:8081/swagger-ui/index.html
 ```
+
 ## Testing with test client
 To adjust settings simply edit the main.rs file in the client-test folder.
 ```bash
 # Start the server from prod image or local build
 cd client-test
-cargo run
+cargo run http://localhost:8080/orders/
 ```
-
 
 # Development
 
@@ -80,6 +76,11 @@ pre-commit install
 
 ```bash
 sqlx migrate add <migration-name>
+```
+### Caching Sqlx queries for offline builds
+
+```bash 
+cargo sqlx prepare -- --all-targets --all-features 
 ```
 
 # Solution Details

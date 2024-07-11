@@ -1,5 +1,4 @@
-// really lazy program to simulate requests to the server
-// Edit constant directly for
+// Extremely lazy program to simulate requests to the server
 
 use serde::{Deserialize, Serialize};
 use std::fmt::format;
@@ -23,13 +22,13 @@ struct Order {
 }
 
 fn main() {
-    // use first cli argument as url
-    let url = "http://localhost:8081/orders/";
+    let url_base = std::env::args().nth(1).unwrap();
     let max_thread = 50;
     let wait_time = 25;
     let table_count = 200;
 
     for thread_id in 0..max_thread {
+        let url = url_base.clone();
         std::thread::spawn(move || {
             loop {
                 sleep(std::time::Duration::from_millis(wait_time));
@@ -54,7 +53,7 @@ fn main() {
                     Action::CreateAndRemove => {
                         let client = reqwest::blocking::Client::new();
                         let response = client
-                            .post(url)
+                            .post(url.as_str())
                             .json(&OrderCreateRequest {
                                 table_number: rand::random::<u8>() % table_count,
                                 item_name: "potato".to_string(),
